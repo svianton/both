@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Дыхание</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eae6fb;
+    --surface: #ffffff;
+    --ink: #17151f;
+    --muted: #8b8698;
+    --hero1: #b3a0f2;
+    --hero2: #8e74e8;
+    --accent: #7a5cf0;
+    /* цвета техник */
+    --c-box: #d8ccff;   --c-box-ink: #4a2fb0;
+    --c-478: #c4e0ff;   --c-478-ink: #1f5fa8;
+    --c-coh: #c4efd6;   --c-coh-ink: #1f8a55;
+    --c-relax: #ffdcb8; --c-relax-ink: #b3641a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Manrope', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+  #app { min-height: 100%; display: flex; flex-direction: column; max-width: 480px; margin: 0 auto; }
+
+  .screen { flex: 1; display: none; flex-direction: column; padding: 18px 18px 26px; }
+  .screen.active { display: flex; }
+
+  /* ---------- Шапка ---------- */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .greet .hi { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .greet .name { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--hero1), var(--hero2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; box-shadow: 0 6px 16px rgba(122,92,240,.35);
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative; overflow: hidden;
+    border-radius: 30px; padding: 24px 22px;
+    background: linear-gradient(135deg, var(--hero1) 0%, var(--hero2) 100%);
+    color: #fff; margin-bottom: 22px;
+    box-shadow: 0 18px 38px -12px rgba(122,92,240,.55);
+  }
+  .hero h1 { font-size: 30px; line-height: 1.05; font-weight: 800; margin: 0 0 8px; letter-spacing: -.5px; }
+  .hero p { margin: 0; font-size: 14px; font-weight: 500; opacity: .92; max-width: 70%; }
+  .hero .blob {
+    position: absolute; right: -30px; top: -20px; width: 190px; height: 190px;
+    opacity: .95; pointer-events: none;
+  }
+  .hero .cta {
+    display: inline-flex; align-items: center; gap: 8px; margin-top: 16px;
+    background: rgba(255,255,255,.22); backdrop-filter: blur(4px);
+    border-radius: 100px; padding: 8px 16px; font-size: 13px; font-weight: 700;
+  }
+
+  /* ---------- Заголовки секций ---------- */
+  .section-title { font-size: 18px; font-weight: 800; margin: 4px 2px 12px; letter-spacing: -.3px; }
+
+  /* ---------- Пилюли длительности ---------- */
+  .durations { display: flex; gap: 10px; margin-bottom: 24px; }
+  .dur-pill {
+    flex: 1; text-align: center; cursor: pointer;
+    background: var(--surface); color: var(--muted);
+    border-radius: 18px; padding: 14px 0; font-size: 15px; font-weight: 700;
+    border: 2px solid transparent; transition: transform .1s, background .2s, color .2s;
+    box-shadow: 0 4px 14px rgba(90,70,150,.06);
+  }
+  .dur-pill:active { transform: scale(.96); }
+  .dur-pill .u { display: block; font-size: 11px; font-weight: 600; opacity: .7; margin-top: 2px; }
+  .dur-pill.selected { background: var(--ink); color: #fff; }
+
+  /* ---------- Карточки техник ---------- */
+  .techniques { display: flex; flex-direction: column; gap: 14px; }
+  .tech-card {
+    position: relative; overflow: hidden;
+    border-radius: 26px; padding: 20px 20px 18px; cursor: pointer;
+    transition: transform .12s ease;
+    box-shadow: 0 10px 26px -14px rgba(40,20,90,.4);
+  }
+  .tech-card:active { transform: scale(.98); }
+  .tech-card .pill {
+    display: inline-block; background: rgba(255,255,255,.55);
+    border-radius: 100px; padding: 5px 12px; font-size: 12px; font-weight: 700; margin-bottom: 12px;
+  }
+  .tech-card .name { font-size: 22px; font-weight: 800; letter-spacing: -.4px; margin-bottom: 4px; }
+  .tech-card .desc { font-size: 13px; font-weight: 500; line-height: 1.45; opacity: .82; max-width: 82%; }
+  .tech-card .play {
+    position: absolute; right: 18px; bottom: 18px;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--ink); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    box-shadow: 0 8px 18px rgba(0,0,0,.22);
+  }
+  .tc-box   { background: var(--c-box);   color: var(--c-box-ink); }
+  .tc-478   { background: var(--c-478);   color: var(--c-478-ink); }
+  .tc-coh   { background: var(--c-coh);   color: var(--c-coh-ink); }
+  .tc-relax { background: var(--c-relax); color: var(--c-relax-ink); }
+
+  .footer-note { text-align: center; color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 22px; }
+
+  /* ---------- Экран практики ---------- */
+  #practice {
+    justify-content: space-between; align-items: center; position: relative;
+    background: radial-gradient(120% 80% at 50% 0%, #efe9ff 0%, var(--bg) 60%);
+  }
+  .practice-header { width: 100%; text-align: center; margin-top: 6px; }
+  .practice-header .tname { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+  .practice-header .tpattern { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 3px; }
+
+  .sound-toggle {
+    position: absolute; top: 6px; right: 4px;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--surface); border: none;
+    color: var(--accent); font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 16px rgba(90,70,150,.14); transition: transform .1s;
+  }
+  .sound-toggle:active { transform: scale(.9); }
+  .sound-toggle.off { color: var(--muted); }
+
+  .breath-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+  .circle-outer {
+    position: relative; width: 300px; height: 300px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .ring {
+    position: absolute; width: 300px; height: 300px; border-radius: 50%;
+    border: 1.5px solid rgba(122,92,240,.18);
+  }
+  .ring.r2 { width: 240px; height: 240px; border-color: rgba(122,92,240,.12); }
+  .circle {
+    position: absolute; width: 190px; height: 190px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #b6a2ff 0%, #8e74e8 55%, #6b4fd6 100%);
+    box-shadow: 0 24px 60px -8px rgba(122,92,240,.6), inset 0 4px 20px rgba(255,255,255,.35);
+    transform: scale(.6);
+  }
+  /* число-обратный отсчёт — в центре круга */
+  .phase-count {
+    position: relative; z-index: 2; color: #fff;
+    font-size: 52px; font-weight: 700; line-height: 1;
+    text-shadow: 0 2px 10px rgba(60,30,140,.4);
+  }
+  /* название фазы — под кругом, не вылезает при сжатии */
+  .phase-name {
+    margin-top: 18px; text-align: center;
+    font-size: 22px; font-weight: 800; letter-spacing: -.3px;
+    color: var(--ink);
+  }
+
+  .stats {
+    display: flex; gap: 14px; margin-top: 22px; width: 100%; max-width: 340px;
+  }
+  .stat {
+    flex: 1; text-align: center; background: var(--surface);
+    border-radius: 20px; padding: 14px 0; box-shadow: 0 6px 18px rgba(90,70,150,.08);
+  }
+  .stat .val { font-size: 22px; font-weight: 800; }
+  .stat .lbl { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; margin-top: 2px; }
+
+  .controls { width: 100%; max-width: 340px; display: flex; gap: 12px; padding-top: 22px; }
+  .btn {
+    flex: 1; border: none; border-radius: 20px; padding: 17px;
+    font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; transition: transform .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: var(--ink); color: #fff; box-shadow: 0 10px 24px rgba(0,0,0,.2); }
+  .btn-secondary { background: var(--surface); color: var(--ink); box-shadow: 0 6px 16px rgba(90,70,150,.08); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Выбор техники -->
+  <section id="menu" class="screen active">
+    <div class="topbar">
+      <div class="greet">
+        <div class="hi" id="greetHi">Дыши спокойно</div>
+        <div class="name" id="greetName">Практики</div>
+      </div>
+      <div class="avatar" id="avatar">🫧</div>
+    </div>
+
+    <div class="hero">
+      <svg class="blob" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g1" cx="35%" cy="30%"><stop offset="0%" stop-color="#fff" stop-opacity=".9"/><stop offset="100%" stop-color="#fff" stop-opacity=".25"/></radialGradient>
+        </defs>
+        <circle cx="130" cy="70" r="52" fill="url(#g1)" opacity=".55"/>
+        <circle cx="90" cy="120" r="34" fill="#fff" opacity=".18"/>
+        <circle cx="150" cy="130" r="22" fill="#fff" opacity=".22"/>
+      </svg>
+      <h1>Вдох.<br>Выдох.</h1>
+      <p>Выбери технику и начни в один тап — в любой момент дня.</p>
+      <div class="cta">🌬️ 4 практики</div>
+    </div>
+
+    <div class="section-title">Длительность</div>
+    <div class="durations" id="durRow"></div>
+
+    <div class="section-title">Техники</div>
+    <div class="techniques" id="techList"></div>
+
+    <p class="footer-note">Сядь удобно · дыши носом · следуй за кругом</p>
+  </section>
+
+  <!-- Практика -->
+  <section id="practice" class="screen">
+    <button class="sound-toggle" id="soundBtn" aria-label="Звук"></button>
+    <div class="practice-header">
+      <div class="tname" id="pName"></div>
+      <div class="tpattern" id="pPattern"></div>
+    </div>
+
+    <div class="breath-wrap">
+      <div class="circle-outer">
+        <div class="ring"></div>
+        <div class="ring r2"></div>
+        <div class="circle" id="circle"></div>
+        <div class="phase-count" id="phaseCount"></div>
+      </div>
+      <div class="phase-name" id="phaseName">Готов?</div>
+      <div class="stats">
+        <div class="stat"><div class="val" id="cycleCount">0</div><div class="lbl">циклов</div></div>
+        <div class="stat"><div class="val" id="timeCount">0:00</div><div class="lbl">время</div></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-secondary" id="stopBtn">Назад</button>
+      <button class="btn btn-primary" id="toggleBtn">Старт</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Telegram integration (безопасно работает и вне Telegram) ----
+  var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+  }
+  function haptic(type) {
+    try {
+      if (tg && tg.HapticFeedback) {
+        if (type === 'change') tg.HapticFeedback.selectionChanged();
+        else tg.HapticFeedback.impactOccurred(type || 'light');
+      }
+    } catch (e) {}
+  }
+
+  // ---- Аудио-движок (Web Audio, без файлов) ----
+  var Audio = {
+    ctx: null, master: null, pad: null, on: true, started: false,
+    ensureCtx: function () {
+      if (this.ctx) return;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) { this.on = false; return; }
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.0;
+      this.master.connect(this.ctx.destination);
+    },
+    startPad: function () {
+      if (!this.ctx || this.started) return;
+      var c = this.ctx, now = c.currentTime;
+      var filter = c.createBiquadFilter();
+      filter.type = 'lowpass'; filter.frequency.value = 520; filter.Q.value = 0.6;
+      var pg = c.createGain(); pg.gain.value = 0.5;
+      var freqs = [110, 164.81, 220];
+      var voices = [];
+      freqs.forEach(function (f) {
+        var o1 = c.createOscillator(); o1.type = 'sine'; o1.frequency.value = f;
+        var o2 = c.createOscillator(); o2.type = 'triangle'; o2.frequency.value = f * 1.005;
+        o1.connect(filter); o2.connect(filter);
+        o1.start(now); o2.start(now); voices.push(o1, o2);
+      });
+      filter.connect(pg); pg.connect(this.master);
+      var lfo = c.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.07;
+      var lfoGain = c.createGain(); lfoGain.gain.value = 0.18;
+      lfo.connect(lfoGain); lfoGain.connect(pg.gain); lfo.start(now);
+      this.pad = { filter: filter, pg: pg, voices: voices, lfo: lfo };
+      this.started = true;
+    },
+    resume: function () {
+      this.ensureCtx();
+      if (!this.ctx) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      this.startPad();
+      if (this.on) this.fadeMaster(0.22, 2.5);
+    },
+    fadeMaster: function (target, dur) {
+      if (!this.ctx) return;
+      var g = this.master.gain, now = this.ctx.currentTime;
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(target, now + dur);
+    },
+    pause: function () { this.fadeMaster(0.0, 1.2); },
+    setOn: function (v) {
+      this.on = v;
+      if (!this.ctx) return;
+      this.fadeMaster(v ? 0.22 : 0.0, v ? 1.5 : 0.6);
+    },
+    chime: function (type) {
+      if (!this.on || !this.ctx) return;
+      var c = this.ctx, now = c.currentTime;
+      var base = type === 'in' ? 440 : type === 'out' ? 330 : 392;
+      var o = c.createOscillator(); o.type = 'sine'; o.frequency.value = base;
+      var o2 = c.createOscillator(); o2.type = 'sine'; o2.frequency.value = base * 2.01;
+      var g = c.createGain(); g.gain.value = 0.0;
+      o.connect(g); o2.connect(g); g.connect(this.master);
+      g.gain.setValueAtTime(0.0, now);
+      g.gain.linearRampToValueAtTime(0.16, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0008, now + 1.8);
+      o.start(now); o2.start(now);
+      o.stop(now + 1.9); o2.stop(now + 1.9);
+    }
+  };
+
+  // ---- Данные техник ----
+  // phases: [название, длительность(сек), тип] ; тип: in|hold|out|holdEmpty
+  var TECHNIQUES = [
+    {
+      id: 'box', name: 'Box breathing', pattern: '4-4-4-4', cls: 'tc-box', icon: '▶',
+      desc: 'Вдох, задержка, выдох, задержка по 4 сек. Концентрация и снятие стресса.',
+      phases: [['Вдох',4,'in'],['Задержка',4,'hold'],['Выдох',4,'out'],['Задержка',4,'holdEmpty']]
+    },
+    {
+      id: '478', name: '4-7-8', pattern: '4-7-8', cls: 'tc-478', icon: '▶',
+      desc: 'Вдох 4, задержка 7, выдох 8. Быстро успокаивает, помогает заснуть.',
+      phases: [['Вдох',4,'in'],['Задержка',7,'hold'],['Выдох',8,'out']]
+    },
+    {
+      id: 'coherent', name: 'Когерентное', pattern: '5-5', cls: 'tc-coh', icon: '▶',
+      desc: 'Ровный вдох 5 и выдох 5. Балансирует нервную систему.',
+      phases: [['Вдох',5,'in'],['Выдох',5,'out']]
+    },
+    {
+      id: 'relax', name: 'Расслабляющее', pattern: '4-6', cls: 'tc-relax', icon: '▶',
+      desc: 'Вдох 4, удлинённый выдох 6. Быстрое расслабление.',
+      phases: [['Вдох',4,'in'],['Выдох',6,'out']]
+    }
+  ];
+
+  var DURATIONS = [1, 3, 5]; // минуты
+  var selectedDuration = 3;
+
+  // ---- Состояние сессии ----
+  var current = null, running = false, phaseIdx = 0, secondsLeftInPhase = 0;
+  var cycles = 0, elapsed = 0, totalTarget = 0, tickTimer = null;
+
+  // ---- DOM ----
+  var menu = document.getElementById('menu');
+  var practice = document.getElementById('practice');
+  var techList = document.getElementById('techList');
+  var durRow = document.getElementById('durRow');
+  var circle = document.getElementById('circle');
+  var phaseName = document.getElementById('phaseName');
+  var phaseCount = document.getElementById('phaseCount');
+  var cycleCount = document.getElementById('cycleCount');
+  var timeCount = document.getElementById('timeCount');
+  var pName = document.getElementById('pName');
+  var pPattern = document.getElementById('pPattern');
+  var toggleBtn = document.getElementById('toggleBtn');
+  var stopBtn = document.getElementById('stopBtn');
+  var soundBtn = document.getElementById('soundBtn');
+  var greetHi = document.getElementById('greetHi');
+  var greetName = document.getElementById('greetName');
+  var avatar = document.getElementById('avatar');
+
+  // ---- SVG-иконки звука (минималистичные, наследуют цвет) ----
+  var ICON_SOUND_ON =
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M11 5 6 9H3v6h3l5 4z"/>' +
+    '<path d="M15.5 8.6a5 5 0 0 1 0 6.8"/>' +
+    '<path d="M18.4 6a9 9 0 0 1 0 12"/></svg>';
+  var ICON_SOUND_OFF =
+    '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M11 5 6 9H3v6h3l5 4z"/>' +
+    '<path d="M22 9.5 16.5 15"/>' +
+    '<path d="M16.5 9.5 22 15"/></svg>';
+
+  // ---- Приветствие из Telegram (аватар + имя) ----
+  function initUser() {
+    var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : null;
+    if (!u) return;
+    var name = u.first_name || u.username || '';
+    if (name) { greetHi.textContent = 'Привет,'; greetName.textContent = name; }
+    if (u.photo_url) {
+      avatar.textContent = '';
+      avatar.style.backgroundImage = 'url("' + u.photo_url + '")';
+      avatar.style.backgroundSize = 'cover';
+      avatar.style.backgroundPosition = 'center';
+    } else if (name) {
+      avatar.textContent = name.charAt(0).toUpperCase();
+      avatar.style.fontSize = '20px';
+      avatar.style.fontWeight = '800';
+      avatar.style.color = '#fff';
+    }
+  }
+
+  // ---- Рендер меню ----
+  function renderDurations() {
+    var dh = '';
+    DURATIONS.forEach(function (m) {
+      dh += '<div class="dur-pill' + (m === selectedDuration ? ' selected' : '') + '" data-min="' + m + '">' +
+              m + '<span class="u">мин</span></div>';
+    });
+    durRow.innerHTML = dh;
+    Array.prototype.forEach.call(durRow.querySelectorAll('.dur-pill'), function (el) {
+      el.addEventListener('click', function () {
+        selectedDuration = parseInt(el.getAttribute('data-min'), 10);
+        haptic('change');
+        renderDurations();
+      });
+    });
+  }
+
+  function renderTechniques() {
+    var html = '';
+    TECHNIQUES.forEach(function (t, i) {
+      html += '<div class="tech-card ' + t.cls + '" data-idx="' + i + '">' +
+                '<div class="pill">' + t.pattern + '</div>' +
+                '<div class="name">' + t.name + '</div>' +
+                '<div class="desc">' + t.desc + '</div>' +
+                '<div class="play">' + t.icon + '</div>' +
+              '</div>';
+    });
+    techList.innerHTML = html;
+    Array.prototype.forEach.call(techList.querySelectorAll('.tech-card'), function (el) {
+      el.addEventListener('click', function () {
+        haptic('light');
+        startTechnique(parseInt(el.getAttribute('data-idx'), 10));
+      });
+    });
+  }
+
+  // ---- Переход на практику ----
+  function startTechnique(idx) {
+    current = TECHNIQUES[idx];
+    pName.textContent = current.name;
+    pPattern.textContent = current.pattern + '  ·  ' + selectedDuration + ' мин';
+    menu.classList.remove('active');
+    practice.classList.add('active');
+    resetSession();
+    if (tg && tg.BackButton) { tg.BackButton.show(); }
+  }
+
+  function resetSession() {
+    stopLoop();
+    running = false; phaseIdx = 0; cycles = 0; elapsed = 0;
+    totalTarget = selectedDuration * 60;
+    cycleCount.textContent = '0';
+    timeCount.textContent = '0:00';
+    phaseName.textContent = 'Готов?';
+    phaseCount.textContent = '';
+    toggleBtn.textContent = 'Старт';
+    setCircle(0.6, 0);
+  }
+
+  // ---- Анимация круга ----
+  function setCircle(scale, durSec) {
+    circle.style.transition = durSec > 0 ? ('transform ' + durSec + 's ease-in-out') : 'none';
+    circle.style.transform = 'scale(' + scale + ')';
+  }
+  function applyPhaseVisual(phase) {
+    var type = phase[2], dur = phase[1];
+    if (type === 'in') setCircle(1.0, dur);
+    else if (type === 'out') setCircle(0.55, dur);
+    else { circle.style.transition = 'none'; }
+  }
+
+  // ---- Основной цикл ----
+  function startPhase() {
+    var phase = current.phases[phaseIdx];
+    phaseName.textContent = phase[0];
+    secondsLeftInPhase = phase[1];
+    phaseCount.textContent = secondsLeftInPhase;
+    applyPhaseVisual(phase);
+    haptic('medium');
+    Audio.chime(phase[2]);
+  }
+  function tick() {
+    if (!running) return;
+    elapsed++; updateTime();
+    if (elapsed >= totalTarget) { finishSession(); return; }
+    secondsLeftInPhase--;
+    if (secondsLeftInPhase <= 0) {
+      phaseIdx++;
+      if (phaseIdx >= current.phases.length) {
+        phaseIdx = 0; cycles++; cycleCount.textContent = cycles;
+      }
+      startPhase();
+    } else {
+      phaseCount.textContent = secondsLeftInPhase;
+    }
+  }
+  function updateTime() {
+    var m = Math.floor(elapsed / 60), s = elapsed % 60;
+    timeCount.textContent = m + ':' + (s < 10 ? '0' + s : s);
+  }
+  function startLoop() { stopLoop(); tickTimer = setInterval(tick, 1000); }
+  function stopLoop() { if (tickTimer) { clearInterval(tickTimer); tickTimer = null; } }
+
+  function play() {
+    running = true;
+    toggleBtn.textContent = 'Пауза';
+    Audio.resume();
+    startPhase();
+    startLoop();
+  }
+  function pause() {
+    running = false;
+    toggleBtn.textContent = 'Продолжить';
+    stopLoop();
+    circle.style.transition = 'none';
+    Audio.pause();
+  }
+  function finishSession() {
+    stopLoop(); running = false;
+    phaseName.textContent = 'Готово';
+    phaseCount.textContent = '✓';
+    toggleBtn.textContent = 'Ещё раз';
+    setCircle(0.78, 1.2);
+    haptic('heavy');
+    Audio.chime('hold');
+    Audio.pause();
+    try { if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+  }
+
+  // ---- Кнопки ----
+  toggleBtn.addEventListener('click', function () {
+    haptic('light');
+    if (phaseName.textContent === 'Готово') { resetSession(); play(); return; }
+    if (running) pause(); else play();
+  });
+
+  function goMenu() {
+    stopLoop(); running = false;
+    practice.classList.remove('active');
+    menu.classList.add('active');
+    Audio.pause();
+    if (tg && tg.BackButton) { tg.BackButton.hide(); }
+  }
+  stopBtn.addEventListener('click', function () { haptic('light'); goMenu(); });
+  if (tg && tg.BackButton) { tg.BackButton.onClick(goMenu); }
+
+  soundBtn.addEventListener('click', function () {
+    haptic('change');
+    var next = !Audio.on;
+    Audio.ensureCtx();
+    if (next && Audio.ctx && Audio.ctx.state === 'suspended') Audio.ctx.resume();
+    if (next && running) Audio.startPad();
+    Audio.setOn(next);
+    soundBtn.innerHTML = next ? ICON_SOUND_ON : ICON_SOUND_OFF;
+    soundBtn.classList.toggle('off', !next);
+  });
+
+  // ---- init ----
+  soundBtn.innerHTML = ICON_SOUND_ON;
+  initUser();
+  renderDurations();
+  renderTechniques();
+})();
+</script>
+</body>
+</html>

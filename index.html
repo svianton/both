@@ -151,7 +151,7 @@
   .practice-header .tpattern { color: var(--muted); font-size: 13px; font-weight: 600; margin-top: 3px; }
 
   .sound-toggle {
-    position: absolute; top: 30px; right: 2px;
+    position: absolute; top: 30px; right: 18px;
     width: 46px; height: 46px; border-radius: 50%;
     background: var(--surface); border: none;
     color: var(--ring); font-size: 20px; cursor: pointer;
@@ -168,7 +168,7 @@
   }
   .progress { position: absolute; width: 300px; height: 300px; transform: rotate(-90deg); }
   .progress .track { fill: none; stroke: var(--ring-track); stroke-width: 5; }
-  .progress .prog { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 1s linear, stroke .5s ease; }
+  .progress .prog { fill: none; stroke-width: 5; stroke-linecap: round; transition: stroke .5s ease; }
   .prog-time { stroke: var(--ring); }
   .prog-cycle { stroke: var(--ring-sub); }
   .circle {
@@ -200,7 +200,7 @@
   .dot-time { background: #7a5cf0; }
   .dot-cycle { background: #b9a6f6; }
 
-  .controls { width: 100%; max-width: 340px; display: flex; gap: 12px; padding-top: 22px; }
+  .controls { width: 100%; display: flex; gap: 12px; padding-top: 22px; }
   .btn {
     flex: 1; border: none; border-radius: 20px; padding: 17px;
     font-family: inherit; font-size: 16px; font-weight: 800; cursor: pointer; transition: transform .1s;
@@ -505,7 +505,8 @@
   // ---- Состояние сессии ----
   var current = null, running = false, phaseIdx = 0, secondsLeftInPhase = 0;
   var cycles = 0, elapsed = 0, totalTarget = 0, tickTimer = null;
-  var cycleLen = 1, lastCycleFrac = 0;
+  var cycleLen = 1;
+  var runStart = 0, accumMs = 0, ringRAF = null; // для плавной отрисовки колец
 
   // ---- DOM ----
   var menu = document.getElementById('menu');
@@ -551,20 +552,24 @@
     el.style.strokeDasharray = C.toFixed(1);
     el.style.strokeDashoffset = C.toFixed(1); // пустое
   }
-  // frac 0..1 ; instant=true — без анимации (для сброса)
-  function setRing(el, frac, instant) {
+  function setRing(el, frac) {
     if (frac < 0) frac = 0; if (frac > 1) frac = 1;
-    if (instant) {
-      el.style.transition = 'none';
-      el.style.strokeDashoffset = (el._C * (1 - frac)).toFixed(1);
-      void el.getBoundingClientRect();
-      el.style.transition = '';
-    } else {
-      el.style.strokeDashoffset = (el._C * (1 - frac)).toFixed(1);
-    }
+    el.style.strokeDashoffset = (el._C * (1 - frac)).toFixed(1);
   }
   initRing(ringTime);
   initRing(ringCycle);
+
+  // Плавная отрисовка колец по кадрам (без секундного лага)
+  function elapsedMs() { return accumMs + (running ? (performance.now() - runStart) : 0); }
+  function animateRings() {
+    var t = elapsedMs() / 1000;              // секунд с начала (дробно)
+    if (t > totalTarget) t = totalTarget;
+    setRing(ringTime, totalTarget ? t / totalTarget : 0);
+    setRing(ringCycle, (t % cycleLen) / cycleLen);
+    if (running) ringRAF = requestAnimationFrame(animateRings);
+  }
+  function startRings() { if (ringRAF) cancelAnimationFrame(ringRAF); ringRAF = requestAnimationFrame(animateRings); }
+  function stopRings() { if (ringRAF) { cancelAnimationFrame(ringRAF); ringRAF = null; } }
 
   // ---- Лог практик (Telegram CloudStorage + localStorage, без бэка) ----
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
@@ -714,11 +719,11 @@
   }
 
   function resetSession() {
-    stopLoop();
-    running = false; phaseIdx = 0; cycles = 0; elapsed = 0; lastCycleFrac = 0;
+    stopLoop(); stopRings();
+    running = false; phaseIdx = 0; cycles = 0; elapsed = 0; accumMs = 0;
     totalTarget = selectedDuration * 60;
-    setRing(ringTime, 0, true);
-    setRing(ringCycle, 0, true);
+    setRing(ringTime, 0);
+    setRing(ringCycle, 0);
     phaseName.textContent = 'Готов?';
     phaseCount.textContent = '';
     toggleBtn.textContent = 'Старт';
@@ -750,13 +755,6 @@
   function tick() {
     if (!running) return;
     elapsed++;
-    // большое кольцо — прогресс общего времени
-    setRing(ringTime, elapsed / totalTarget);
-    // среднее кольцо — прогресс текущего цикла (сбрасывается каждый новый цикл)
-    var frac = (elapsed % cycleLen) / cycleLen;
-    if (frac === 0) frac = 1; // конец цикла показываем полным перед сбросом
-    setRing(ringCycle, frac, frac < lastCycleFrac);
-    lastCycleFrac = frac;
     if (elapsed >= totalTarget) { finishSession(); return; }
     secondsLeftInPhase--;
     if (secondsLeftInPhase <= 0) {
@@ -773,20 +771,24 @@
   function play() {
     running = true;
     toggleBtn.textContent = 'Пауза';
+    runStart = performance.now();
     Audio.resume(current ? current.id : 'box');
     startPhase();
     startLoop();
+    startRings();
   }
   function pause() {
     running = false;
     toggleBtn.textContent = 'Продолжить';
-    stopLoop();
+    accumMs += performance.now() - runStart;
+    stopLoop(); stopRings();
     circle.style.transition = 'none';
     Audio.pause();
   }
   function finishSession() {
-    stopLoop(); running = false;
-    setRing(ringTime, 1);
+    accumMs += performance.now() - runStart;
+    stopLoop(); stopRings(); running = false;
+    setRing(ringTime, 1); setRing(ringCycle, 1);
     phaseName.textContent = 'Готово';
     phaseCount.textContent = '✓';
     toggleBtn.textContent = 'Ещё раз';
@@ -808,7 +810,7 @@
   });
 
   function goMenu() {
-    stopLoop(); running = false;
+    stopLoop(); stopRings(); running = false;
     practice.classList.remove('active');
     menu.classList.add('active');
     Audio.pause();
